@@ -52,6 +52,10 @@ spec:
                   key: api-secret
             - name: DNS_DOMAIN
               value: {{ .Values.config.dnsDomain | quote }}
+            - name: DNS_BACKEND
+              value: {{ .Values.config.dns.backend | quote }}
+            - name: DDCLIENT_ACCOUNT
+              value: {{ .Values.config.dns.ddclientAccount | quote }}
             - name: FRONTEND_BIND_ADDRESS
               value: {{ .Values.config.frontendBindAddress | quote }}
             - name: FIREWALL_RULE_API

@@ -25,6 +25,8 @@ type Reconfigurer struct {
 	mu              sync.Mutex
 	haproxyPending  bool
 	unboundPending  bool
+	dnsmasqPending  bool
+	dyndnsPending   bool
 	firewallPending bool
 	timer           *time.Timer
 }
@@ -39,6 +41,12 @@ func (r *Reconfigurer) TriggerHAProxy() { r.mark(func() { r.haproxyPending = tru
 
 // TriggerUnbound schedules a debounced unbound reload.
 func (r *Reconfigurer) TriggerUnbound() { r.mark(func() { r.unboundPending = true }) }
+
+// TriggerDnsmasq schedules a debounced dnsmasq reload.
+func (r *Reconfigurer) TriggerDnsmasq() { r.mark(func() { r.dnsmasqPending = true }) }
+
+// TriggerDynDNS schedules a debounced ddclient (dyndns) reload.
+func (r *Reconfigurer) TriggerDynDNS() { r.mark(func() { r.dyndnsPending = true }) }
 
 // TriggerFirewall schedules a debounced firewall ruleset apply.
 func (r *Reconfigurer) TriggerFirewall() { r.mark(func() { r.firewallPending = true }) }
@@ -59,9 +67,13 @@ func (r *Reconfigurer) flush() {
 	r.mu.Lock()
 	haproxy := r.haproxyPending
 	unbound := r.unboundPending
+	dnsmasq := r.dnsmasqPending
+	dyndns := r.dyndnsPending
 	firewall := r.firewallPending
 	r.haproxyPending = false
 	r.unboundPending = false
+	r.dnsmasqPending = false
+	r.dyndnsPending = false
 	r.firewallPending = false
 	r.mu.Unlock()
 
@@ -83,6 +95,20 @@ func (r *Reconfigurer) flush() {
 			l.Error(err, "unbound reconfigure failed")
 		} else {
 			l.Info("unbound reconfigured")
+		}
+	}
+	if dnsmasq {
+		if err := r.client.Dnsmasq().Reconfigure(ctx); err != nil {
+			l.Error(err, "dnsmasq reconfigure failed")
+		} else {
+			l.Info("dnsmasq reconfigured")
+		}
+	}
+	if dyndns {
+		if err := r.client.DynDNS().Reconfigure(ctx); err != nil {
+			l.Error(err, "ddclient reconfigure failed")
+		} else {
+			l.Info("ddclient reconfigured")
 		}
 	}
 	if firewall {

@@ -28,6 +28,13 @@ config:
   dnsDomain: lan
   reconfigureDebounce: 2s
   resyncPeriod: 10m
+  dns:
+    # Default DNS backend when a Service doesn't set the dns-backend annotation:
+    # "ddclient" (external provider via os-ddclient), "unbound", or "dnsmasq".
+    backend: ddclient
+    # Description of the os-ddclient account whose hostnames the operator manages
+    # (required for the ddclient backend; the account's creds/zone live on the box).
+    ddclientAccount: ""
   # Listen address for operator-created "dedicated" frontends.
   frontendBindAddress: "0.0.0.0"
   # Firewall (WAN exposure) settings. See docs/edge-provisioner.md.

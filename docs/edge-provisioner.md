@@ -50,6 +50,17 @@ frontend (SNI/host routing, one port many hosts).
   `linkedActions` is a `uuid -> {value,selected}` map; attach by POSTing the csv
   of selected uuids back to `setFrontend`. (SNI matching, for TCP passthrough, is
   a separate `ssl_sni*` expression — future.)
+- **DNS (pluggable):** validated live —
+  - **ddclient** lives at **`/api/dyndns/*`** (NOT `/api/ddclient/*`). An account
+    (`accounts/searchItem`) holds `service`/`username`/`password`/`zone`/`interface`
+    and a `hostnames` CSV; it publishes the firewall's WAN IP to those FQDNs. Creds
+    are operator-level, so we only **partial-update** the account's `hostnames`
+    (`accounts/setItem/{uuid}` with just `{hostnames}` — OPNsense's additive
+    setNodes preserves the stored credentials). Apply: `/api/dyndns/service/reconfigure`.
+  - **unbound** host override: `/api/unbound/settings/{searchHostOverride,
+    addHostOverride,setHostOverride,delHostOverride}` (host/domain/server).
+  - **dnsmasq** host: `/api/dnsmasq/settings/{searchHost,addHost,setHost,delHost}`
+    (host/domain/ip/**descr**). Apply: `/api/dnsmasq/service/reconfigure`.
 - **ACME:** certs are separate objects under `/api/acmeclient/certificates/*`
   (own UUIDs); issue via `/api/acmeclient/certificates/issue/{uuid}`. **Validated
   live:** `search` rows key on `name` (the domain/CN, e.g. `zong.trickyearlobe.com`)
@@ -155,6 +166,10 @@ Secret so rotation is picked up without a pod restart. Sketch:
    field to `expression: "hdr"` + `hdr` value (was a wrong `host_matches` guess);
    action/frontend-attach fields confirmed live. Unit-tested; live mutating test
    gated behind `LIVE_SHARED_ROUTING=1`.
-6. DNS provider: pluggable backend (ddclient first). **Now unblocked** — privileges
-   granted; API roots confirmed: ddclient = `/api/dyndns/*`, unbound =
-   `/api/unbound/*`, dnsmasq = `/api/dnsmasq/*`.
+6. ✅ DNS provider: pluggable backend seam (`dns-backend`: ddclient | unbound |
+   dnsmasq), default `DNS_BACKEND=ddclient`. ddclient adds the FQDN to an
+   operator-owned account (`DDCLIENT_ACCOUNT`) via a safe partial update;
+   unbound/dnsmasq write a host override to the firewall's resolver. Read-only
+   live-validated (all three searches + real account resolve); the ddclient
+   hostnames mutation is unit-tested but not live-run (touches a creds-bearing
+   account).
