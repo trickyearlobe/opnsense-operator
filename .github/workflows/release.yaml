@@ -94,7 +94,7 @@ jobs:
         run: cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
 
       - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: sarif
