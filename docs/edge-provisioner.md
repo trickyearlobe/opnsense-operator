@@ -65,10 +65,38 @@ Auto-opening WAN ports from annotations is powerful. Guards:
   (`WAN_ALLOWED_PORTS`, e.g. `9000-9099`) — a stray annotation can't open 22/443.
 - WAN interface is operator config (`WAN_INTERFACE`), never annotation-driven.
 
+## Credentials
+
+The OPNsense API key/secret are read today from the environment
+(`OPNSENSE_KEY` / `OPNSENSE_SECRET`), sourced from a Kubernetes Secret mounted as
+env (see `deploy/`). For this homelab the Secret is materialised from Vault at
+**`be/dev/opnsense-operator/*`** (e.g. ExternalSecrets / vault-agent → the
+`opnsense-api` Secret with keys `api-key`/`api-secret`).
+
+**Future feature — live credential reload (no restart).** Read the creds from the
+Secret via the controller-runtime client instead of process env, and watch that
+Secret so rotation is picked up without a pod restart. Sketch:
+
+- `opnsense.Client` already holds key/secret at construction. Refactor it to pull
+  creds through an indirection — `Options.Credentials func() (key, secret string)`
+  reading an `atomic.Pointer` to the current pair — so the value is resolved per
+  request, not frozen at startup.
+- Feed that holder from a Secret informer (the manager's cached client gives a
+  watch-backed local cache): on `Update` to the `opnsense-api` Secret, atomically
+  swap in the new pair. A reconcile-time re-read of the cached Secret is the
+  simpler first cut; an explicit watch is the zero-latency version.
+- Reliability: this is a well-trodden pattern (the cache is authoritative and
+  consistent); the only care points are (a) tolerating a transiently-empty/secret
+  during rotation by keeping the last-good pair, and (b) not logging the value.
+  Gate behind a flag (`CREDS_FROM_SECRET=true` + `OPNSENSE_SECRET_NAME`) and keep
+  env as the fallback. Adopt once it proves reliable in dev.
+
 ## Build order (each: client capability → validate live → wire provider)
 
 1. ✅ Cert resolver + Frontend CRUD client (`pkg/opnsense`), live read-only test.
-2. HAProxy provider: `dedicated` frontend create/own + reuse/own backend.
+2. ✅ HAProxy provider: `dedicated` frontend create/own (`frontend-mode: dedicated`
+   → bind `listen-port`, optional `tls-cert` refid offload, default backend = the
+   service). Unit-tested; live provider-path validation pending operator approval.
 3. Firewall provider: gated WAN rule.
 4. ACME provider: ensure/issue cert by name.
 5. DNS provider: pluggable backend (ddclient first), once DNS privilege lands.

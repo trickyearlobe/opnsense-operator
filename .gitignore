@@ -5,3 +5,5 @@
 .DS_Store
 # Never commit real firewall credentials.
 deploy/secret.yaml
+# Local working/handoff notes — untracked by design.
+HANDOFF.md

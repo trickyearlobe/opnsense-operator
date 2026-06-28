@@ -139,8 +139,9 @@ func serverName(svc *corev1.Service, t target) string {
 	return serverNamePrefix(svc) + sanitize(t.Address) + "_" + strconv.Itoa(int(t.Port))
 }
 
-func aclName(svc *corev1.Service) string    { return backendName(svc) + "_acl" }
-func actionName(svc *corev1.Service) string { return backendName(svc) + "_act" }
+func aclName(svc *corev1.Service) string      { return backendName(svc) + "_acl" }
+func actionName(svc *corev1.Service) string   { return backendName(svc) + "_act" }
+func frontendName(svc *corev1.Service) string { return backendName(svc) + "_fe" }
 
 // managedDescription tags an object as owned by this controller for a given
 // Service, so ListManaged* can find it and pruning can be scoped safely.

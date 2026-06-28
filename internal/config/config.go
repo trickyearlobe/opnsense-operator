@@ -19,6 +19,11 @@ type Config struct {
 	// DNSDomain is the domain used when building Unbound host overrides.
 	DNSDomain string
 
+	// FrontendBindAddress is the listen address for operator-created "dedicated"
+	// frontends. Defaults to "0.0.0.0" (all interfaces); set to a specific
+	// address to restrict which interface the frontend binds.
+	FrontendBindAddress string
+
 	// ReconfigureDebounce coalesces a burst of changes into one haproxy reload.
 	ReconfigureDebounce time.Duration
 
@@ -38,6 +43,7 @@ func FromEnv() (*Config, error) {
 		OPNsenseSecret:      os.Getenv("OPNSENSE_SECRET"),
 		OPNsenseInsecure:    envBool("OPNSENSE_INSECURE", false),
 		DNSDomain:           envStr("DNS_DOMAIN", "lan"),
+		FrontendBindAddress: envStr("FRONTEND_BIND_ADDRESS", "0.0.0.0"),
 		ReconfigureDebounce: envDuration("RECONFIGURE_DEBOUNCE", 2*time.Second),
 		ResyncPeriod:        envDuration("RESYNC_PERIOD", 10*time.Minute),
 		MetricsAddr:         envStr("METRICS_ADDR", ":8080"),
