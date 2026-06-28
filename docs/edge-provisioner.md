@@ -42,7 +42,14 @@ frontend (SNI/host routing, one port many hosts).
   empty reference fields; drop the inherited `id`.
 - **Apply:** `POST /api/haproxy/service/reconfigure`.
 - **ACME:** certs are separate objects under `/api/acmeclient/certificates/*`
-  (own UUIDs); issue via `/api/acmeclient/certificates/issue/{uuid}`.
+  (own UUIDs); issue via `/api/acmeclient/certificates/issue/{uuid}`. **Validated
+  live:** `search` rows key on `name` (the domain/CN, e.g. `zong.trickyearlobe.com`)
+  and `altNames` (comma-separated SANs) — NOT `description`, which is often empty
+  or a human label. `statusCode` is `"200"` once a sign has succeeded; `certRefId`
+  is the HAProxy refid of the issued cert. So resolve a cert by **name (CN), else
+  altNames** (`ACME.FindCertByName`), and only force `issue` when not yet signed —
+  OPNsense's auto-renewal cron owns ongoing renewal, so re-issuing every resync
+  would needlessly hit the ACME provider / its rate limits.
 - **Firewall (Automation/Filter):** `/api/firewall/filter/{searchRule,getRule,
   addRule,setRule,delRule,apply}` (os-firewall plugin). **Field set validated
   live via `getRule`** (2026-06-28): `addRule` takes a `{"rule": …}` body where
@@ -129,6 +136,9 @@ Secret so rotation is picked up without a pod restart. Sketch:
    test green against the box). `rules-new` is a fail-fast placeholder until its
    endpoints appear on the firmware. Live mutating provider test gated behind
    `LIVE_WAN_RULE=1` (needs per-session box-mutation authorization).
-4. ACME provider: ensure/issue cert by name.
+4. ✅ ACME provider: resolve cert by name (CN/altNames, via `tls-cert` else
+   `hostname`); issue only when unsigned, else leave renewal to OPNsense.
+   Name→cert resolution validated live (read-only); issuance not triggered (would
+   hit Let's Encrypt; all live certs already signed).
 5. DNS provider: pluggable backend (ddclient first), once DNS privilege lands.
 6. `shared` frontend mode via the host-ACL binding (already prototyped).
