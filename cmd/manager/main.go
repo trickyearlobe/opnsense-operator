@@ -59,11 +59,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	reconfigurer := provider.NewReconfigurer(opnClient, cfg.ReconfigureDebounce)
+	reconfigurer.FirewallAPI = cfg.FirewallRuleAPI
+
 	deps := provider.Deps{
 		K8s:          mgr.GetClient(),
 		OPN:          opnClient,
 		Cfg:          cfg,
-		Reconfigurer: provider.NewReconfigurer(opnClient, cfg.ReconfigureDebounce),
+		Reconfigurer: reconfigurer,
 	}
 
 	if err := (&controller.ServiceReconciler{

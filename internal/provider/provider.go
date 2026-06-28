@@ -42,8 +42,9 @@ type Deps struct {
 // references).
 func Default(d Deps) []Provider {
 	return []Provider{
-		NewHAProxy(d), // backend/servers + optional frontend ACL
-		NewDNS(d),     // Unbound host override
-		NewACME(d),    // certificate issue/renew
+		NewHAProxy(d),  // backend/servers + optional frontend ACL
+		NewFirewall(d), // WAN pass rule for the frontend port (gated)
+		NewDNS(d),      // Unbound host override
+		NewACME(d),     // certificate issue/renew
 	}
 }

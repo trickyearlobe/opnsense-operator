@@ -43,17 +43,27 @@ frontend (SNI/host routing, one port many hosts).
 - **Apply:** `POST /api/haproxy/service/reconfigure`.
 - **ACME:** certs are separate objects under `/api/acmeclient/certificates/*`
   (own UUIDs); issue via `/api/acmeclient/certificates/issue/{uuid}`.
-- **Firewall:** `/api/firewall/filter/{searchRule,addRule,delRule,apply}` (the
-  Automation > Filter API). Rule fields confirmed via `getRule`.
-  - ⚠️ **Two rule APIs to support.** OPNsense is migrating the core ruleset to an
-    API-manageable form ("rules(new)"), which is a *different* endpoint from the
-    `os-firewall` Automation/Filter API above. The two have different field sets,
-    ordering/grouping semantics, and apply calls. The firewall provider must
-    therefore put rule CRUD behind a seam (e.g. a `FirewallRules` interface in
-    `pkg/opnsense` with `automation` and `core`/`rules-new` implementations),
-    selected by config (`FIREWALL_RULE_API=automation|rules-new`) and/or live
-    capability detection. **Validate the new endpoint's paths + fields against the
-    box before wiring** — don't assume the Automation field names carry over.
+- **Firewall (Automation/Filter):** `/api/firewall/filter/{searchRule,getRule,
+  addRule,setRule,delRule,apply}` (os-firewall plugin). **Field set validated
+  live via `getRule`** (2026-06-28): `addRule` takes a `{"rule": …}` body where
+  select fields are the bare option key as a string and booleans are `"0"`/`"1"`.
+  A WAN pass rule = `enabled:1, action:pass, quick:1, interface:wan, direction:in,
+  ipprotocol:inet, protocol:TCP, source_net:any, destination_net:(self),
+  destination_port:<port>, description:<managed marker>`. The **WAN interface key
+  is `wan`** (confirmed against the box's interface list). `searchRule` rows carry
+  `uuid` + `description`, so we match our own rules by exact description (the
+  managed marker). `apply` returns `{"status":"OK\n…"}` (uppercase, unlike
+  haproxy's `ok`). Implemented in `pkg/opnsense/firewall.go` (`automationFilter`).
+  - ⚠️ **Two rule APIs — seam in place, only `automation` wired.** OPNsense is
+    migrating the core ruleset to an API-manageable form ("rules(new)"), a
+    *different* endpoint/field set/apply from the Automation API. Rule CRUD sits
+    behind the `FirewallRules` interface (`pkg/opnsense/firewall.go`) with an
+    `automation` impl and a `rules-new` placeholder, selected by config
+    (`FIREWALL_RULE_API=automation|rules-new`, default `automation`). **The
+    `rules-new` endpoints are absent on this box's firmware** (every candidate
+    `/api/firewall/*` path 404s as of 2026-06-28), so per the validate-before-wiring
+    rule the placeholder fails fast and is NOT implemented on guesswork. Probe the
+    real paths + fields live, then fill in `rulesNew`.
 
 ## API user privileges
 
@@ -72,7 +82,15 @@ Auto-opening WAN ports from annotations is powerful. Guards:
 - WAN rule only when `expose-wan: true`.
 - `listen-port` must fall in an operator-configured **allowed range**
   (`WAN_ALLOWED_PORTS`, e.g. `9000-9099`) — a stray annotation can't open 22/443.
-- WAN interface is operator config (`WAN_INTERFACE`), never annotation-driven.
+  **Empty range denies every port** (fail-closed): WAN exposure is opt-in at the
+  operator level, so the feature is inert until a range is configured.
+- WAN interface is operator config (`WAN_INTERFACE`, default `wan`), never
+  annotation-driven.
+- Rule is destination `(self)` on exactly `listen-port` — opens only the port the
+  dedicated frontend listens on, nothing wider.
+- Implemented in `internal/provider/firewall.go`; the provider runs **after**
+  HAProxy on apply (frontend exists before the port opens) and **before** it on
+  cleanup (port closes before the frontend is removed).
 
 ## Credentials
 
@@ -106,8 +124,11 @@ Secret so rotation is picked up without a pod restart. Sketch:
 2. ✅ HAProxy provider: `dedicated` frontend create/own (`frontend-mode: dedicated`
    → bind `listen-port`, optional `tls-cert` refid offload, default backend = the
    service). Unit-tested; live provider-path validation pending operator approval.
-3. Firewall provider: gated WAN rule — behind a `FirewallRules` seam supporting
-   BOTH the os-firewall Automation API and the new core "rules(new)" API.
+3. ✅ Firewall provider: gated WAN rule behind the `FirewallRules` seam.
+   `automation` impl validated live (field set via `getRule`; read-only client
+   test green against the box). `rules-new` is a fail-fast placeholder until its
+   endpoints appear on the firmware. Live mutating provider test gated behind
+   `LIVE_WAN_RULE=1` (needs per-session box-mutation authorization).
 4. ACME provider: ensure/issue cert by name.
 5. DNS provider: pluggable backend (ddclient first), once DNS privilege lands.
 6. `shared` frontend mode via the host-ACL binding (already prototyped).
