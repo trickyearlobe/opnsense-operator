@@ -1,0 +1,48 @@
+# Argo CD Application that installs opnsense-operator from the in-repo Helm chart.
+# Apply into the argocd namespace (or manage via an App-of-Apps).
+#
+# Credentials: do NOT inline the API key/secret here. Reference an existing
+# Secret (created by SealedSecrets / ExternalSecrets / Vault) via
+# opnsense.existingSecret, as shown.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opnsense-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/trickyearlobe/opnsense-operator
+    targetRevision: v0.1.0 # pin to a released tag
+    path: charts/opnsense-operator
+    helm:
+      values: |
+        opnsense:
+          url: https://opnsense.lan
+          insecure: true
+          existingSecret: opnsense-api   # keys: api-key, api-secret
+        config:
+          dnsDomain: lan
+        serviceMonitor:
+          enabled: true                  # if you run kube-prometheus-stack
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opnsense-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# Alternative: install the released chart from GHCR's OCI registry instead of the
+# git path. Requires registering the OCI repo in Argo CD (or use a Helm source).
+#
+# spec:
+#   source:
+#     repoURL: ghcr.io/trickyearlobe/charts
+#     chart: opnsense-operator
+#     targetRevision: 0.1.0
+#     helm: { values: ... }

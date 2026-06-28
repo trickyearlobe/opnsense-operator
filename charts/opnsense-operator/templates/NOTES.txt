@@ -1,0 +1,27 @@
+{{ include "operator.fullname" . }} is installed.
+
+Image:   {{ include "operator.image" . }}
+OPNsense: {{ .Values.opnsense.url }}
+
+{{- if and (not .Values.opnsense.existingSecret) (not .Values.opnsense.apiKey) }}
+
+⚠  No OPNsense API credentials were provided. The controller will not start
+   until a Secret named "{{ include "operator.secretName" . }}" exists with keys
+   api-key and api-secret. Provide one of:
+
+     helm upgrade ... --set opnsense.apiKey=KEY --set opnsense.apiSecret=SECRET
+   or:
+     --set opnsense.existingSecret=my-secret   # with keys api-key, api-secret
+{{- end }}
+
+Expose a Service by annotating it, e.g.:
+
+  metadata:
+    annotations:
+      opnsense-operator.k8s.local/expose: "true"
+      opnsense-operator.k8s.local/hostname: "app.example.com"
+      opnsense-operator.k8s.local/frontend: "https-443"
+
+Check the controller:
+
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "operator.fullname" . }} -f

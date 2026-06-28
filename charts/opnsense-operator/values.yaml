@@ -1,0 +1,81 @@
+# Default values for opnsense-operator.
+
+image:
+  repository: ghcr.io/trickyearlobe/opnsense-operator
+  # tag defaults to .Chart.AppVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+replicaCount: 1
+
+# OPNsense API connection.
+opnsense:
+  # Firewall root URL (no trailing /api).
+  url: "https://opnsense.lan"
+  # Skip TLS verification — only for self-signed firewall certs.
+  insecure: false
+  # Credentials. Prefer an existing Secret (e.g. created by an ExternalSecret or
+  # SealedSecret) holding keys `api-key` and `api-secret`:
+  existingSecret: ""
+  # ...or supply inline (templated into a Secret). DO NOT commit real values to
+  # Git — use --set / a values override / a secrets manager.
+  apiKey: ""
+  apiSecret: ""
+
+# Controller behaviour (maps to env vars).
+config:
+  dnsDomain: lan
+  reconfigureDebounce: 2s
+  resyncPeriod: 10m
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: true
+
+leaderElection:
+  enabled: true
+
+# Metrics + health probes.
+metrics:
+  enabled: true
+  port: 8080
+probePort: 8081
+
+# ServiceMonitor for the Prometheus operator (e.g. kube-prometheus-stack).
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Extra environment variables, verbatim.
+extraEnv: []

@@ -1,0 +1,65 @@
+# Three ways to expose a Service on the OPNsense HAProxy.
+
+# (A) loadbalancer strategy (DEFAULT): the controller reads the VIP straight
+#     from .status.loadBalancer.ingress — e.g. a Cilium LB-IPAM / MetalLB
+#     address. No address annotation needed; just opt in. This is the natural
+#     fit for a cluster whose Services already get stable, LAN-reachable VIPs.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: default
+  annotations:
+    opnsense-operator.k8s.local/expose: "true"
+    opnsense-operator.k8s.local/backend-mode: "http"
+    # Optional L7 routing: attach a host ACL to an existing public frontend.
+    opnsense-operator.k8s.local/hostname: "web.example.com"
+    opnsense-operator.k8s.local/frontend: "https-443"
+spec:
+  type: LoadBalancer
+  selector: { app: web }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# (B) nodeport strategy: one haproxy server per Ready node IP + the NodePort.
+#     Use this on clusters without an LB-IPAM. kube-proxy handles the last hop,
+#     so upstreams stay stable across pod churn.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-nodeport
+  namespace: default
+  annotations:
+    opnsense-operator.k8s.local/expose: "true"
+    opnsense-operator.k8s.local/upstream-strategy: "nodeport"
+spec:
+  type: NodePort
+  selector: { app: web }
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30080
+---
+# (C) vip strategy: point haproxy at a FIXED address that is not this Service's
+#     own LB IP. Also maintains an Unbound DNS override and triggers ACME renewal.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-vip
+  namespace: default
+  annotations:
+    opnsense-operator.k8s.local/expose: "true"
+    opnsense-operator.k8s.local/upstream-strategy: "vip"
+    opnsense-operator.k8s.local/upstream-address: "192.168.1.240"
+    opnsense-operator.k8s.local/upstream-port: "80"
+    opnsense-operator.k8s.local/hostname: "shop.example.com"
+    opnsense-operator.k8s.local/frontend: "https-443"
+    opnsense-operator.k8s.local/dns: "true"     # maintain Unbound host override
+    opnsense-operator.k8s.local/acme: "true"    # issue/renew cert (must pre-exist on the firewall)
+spec:
+  type: ClusterIP
+  selector: { app: shop }
+  ports:
+    - port: 80
+      targetPort: 8080

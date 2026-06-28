@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "operator.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "operator.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: manager
+          image: {{ include "operator.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: OPNSENSE_URL
+              value: {{ .Values.opnsense.url | quote }}
+            - name: OPNSENSE_INSECURE
+              value: {{ .Values.opnsense.insecure | quote }}
+            - name: OPNSENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operator.secretName" . }}
+                  key: api-key
+            - name: OPNSENSE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operator.secretName" . }}
+                  key: api-secret
+            - name: DNS_DOMAIN
+              value: {{ .Values.config.dnsDomain | quote }}
+            - name: RECONFIGURE_DEBOUNCE
+              value: {{ .Values.config.reconfigureDebounce | quote }}
+            - name: RESYNC_PERIOD
+              value: {{ .Values.config.resyncPeriod | quote }}
+            - name: METRICS_ADDR
+              value: ":{{ .Values.metrics.port }}"
+            - name: PROBE_ADDR
+              value: ":{{ .Values.probePort }}"
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+            - name: probe
+              containerPort: {{ .Values.probePort }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: probe
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: probe
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
