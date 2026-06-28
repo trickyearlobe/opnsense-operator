@@ -205,8 +205,8 @@ func (p *HAProxy) applySharedRouting(ctx context.Context, svc *corev1.Service, b
 	aclUUID, err := hap.UpsertACL(ctx, opnsense.ACL{
 		Name:        aclName(svc),
 		Description: desc,
-		Expression:  "host_matches",
-		HostMatches: host,
+		Expression:  opnsense.ACLExprHostMatch,
+		Hdr:         host,
 	})
 	if err != nil {
 		return fmt.Errorf("upsert acl: %w", err)

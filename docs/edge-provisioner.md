@@ -41,6 +41,15 @@ frontend (SNI/host routing, one port many hosts).
   ssl_default_certificate=refid, enabled `1`). Cloning the full object fails on
   empty reference fields; drop the inherited `id`.
 - **Apply:** `POST /api/haproxy/service/reconfigure`.
+- **Host routing (shared frontend):** validated live via `getAcl`/`getAction`/
+  `getFrontend`. An HTTP Host ACL uses **`expression: "hdr"`** ("HTTP Host Header
+  matches") with the value in a field **also named `hdr`** — there is NO
+  `host_matches` field (the earlier experimental guess was wrong). The action uses
+  `type: "use_backend"` (a valid `type` option), `testType: if`, `operator: and`,
+  `linkedAcls` (csv of ACL uuids), `use_backend` (backend uuid). A frontend's
+  `linkedActions` is a `uuid -> {value,selected}` map; attach by POSTing the csv
+  of selected uuids back to `setFrontend`. (SNI matching, for TCP passthrough, is
+  a separate `ssl_sni*` expression — future.)
 - **ACME:** certs are separate objects under `/api/acmeclient/certificates/*`
   (own UUIDs); issue via `/api/acmeclient/certificates/issue/{uuid}`. **Validated
   live:** `search` rows key on `name` (the domain/CN, e.g. `zong.trickyearlobe.com`)
@@ -80,7 +89,9 @@ frontend (SNI/host routing, one port many hosts).
 | Cert resolve | System: Certificate Manager | ✅ granted |
 | ACME | os-acme-client | ✅ granted |
 | WAN rule | Firewall: Automation: Filter | ✅ granted |
-| DNS | Unbound / os-ddclient | ⏳ pending |
+| DNS — Unbound | Services: Unbound (host overrides) | ✅ granted |
+| DNS — dnsmasq | Services: Dnsmasq DNS | ✅ granted |
+| DNS — ddclient | os-ddclient | ✅ granted (API root is **`/api/dyndns/*`**, not `/api/ddclient/*`) |
 
 ## Security gating
 
@@ -140,5 +151,10 @@ Secret so rotation is picked up without a pod restart. Sketch:
    `hostname`); issue only when unsigned, else leave renewal to OPNsense.
    Name→cert resolution validated live (read-only); issuance not triggered (would
    hit Let's Encrypt; all live certs already signed).
-5. DNS provider: pluggable backend (ddclient first), once DNS privilege lands.
-6. `shared` frontend mode via the host-ACL binding (already prototyped).
+5. ✅ `shared` frontend mode via the host-ACL binding. Corrected the host-match
+   field to `expression: "hdr"` + `hdr` value (was a wrong `host_matches` guess);
+   action/frontend-attach fields confirmed live. Unit-tested; live mutating test
+   gated behind `LIVE_SHARED_ROUTING=1`.
+6. DNS provider: pluggable backend (ddclient first). **Now unblocked** — privileges
+   granted; API roots confirmed: ddclient = `/api/dyndns/*`, unbound =
+   `/api/unbound/*`, dnsmasq = `/api/dnsmasq/*`.
