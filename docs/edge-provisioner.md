@@ -45,6 +45,15 @@ frontend (SNI/host routing, one port many hosts).
   (own UUIDs); issue via `/api/acmeclient/certificates/issue/{uuid}`.
 - **Firewall:** `/api/firewall/filter/{searchRule,addRule,delRule,apply}` (the
   Automation > Filter API). Rule fields confirmed via `getRule`.
+  - ⚠️ **Two rule APIs to support.** OPNsense is migrating the core ruleset to an
+    API-manageable form ("rules(new)"), which is a *different* endpoint from the
+    `os-firewall` Automation/Filter API above. The two have different field sets,
+    ordering/grouping semantics, and apply calls. The firewall provider must
+    therefore put rule CRUD behind a seam (e.g. a `FirewallRules` interface in
+    `pkg/opnsense` with `automation` and `core`/`rules-new` implementations),
+    selected by config (`FIREWALL_RULE_API=automation|rules-new`) and/or live
+    capability detection. **Validate the new endpoint's paths + fields against the
+    box before wiring** — don't assume the Automation field names carry over.
 
 ## API user privileges
 
@@ -97,7 +106,8 @@ Secret so rotation is picked up without a pod restart. Sketch:
 2. ✅ HAProxy provider: `dedicated` frontend create/own (`frontend-mode: dedicated`
    → bind `listen-port`, optional `tls-cert` refid offload, default backend = the
    service). Unit-tested; live provider-path validation pending operator approval.
-3. Firewall provider: gated WAN rule.
+3. Firewall provider: gated WAN rule — behind a `FirewallRules` seam supporting
+   BOTH the os-firewall Automation API and the new core "rules(new)" API.
 4. ACME provider: ensure/issue cert by name.
 5. DNS provider: pluggable backend (ddclient first), once DNS privilege lands.
 6. `shared` frontend mode via the host-ACL binding (already prototyped).
