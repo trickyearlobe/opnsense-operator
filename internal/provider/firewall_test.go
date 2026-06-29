@@ -119,12 +119,12 @@ func TestFirewallReconcile_RequiresListenPort(t *testing.T) {
 func TestFirewallReconcile_OptOutRemovesRule(t *testing.T) {
 	var delHit string
 	p, rules := newFirewallProvider(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/firewall/filter/searchRule":
+		switch r.URL.Path {
+		case "/api/firewall/filter/searchRule":
 			_ = json.NewEncoder(w).Encode(map[string]any{"rows": []map[string]string{
 				{"uuid": "existing", "description": firewallRuleDescription(svc("aladdin", "demo-wallet"))},
 			}, "total": 1})
-		case r.URL.Path == "/api/firewall/filter/delRule/existing":
+		case "/api/firewall/filter/delRule/existing":
 			delHit = r.URL.Path
 			_ = json.NewEncoder(w).Encode(map[string]string{"result": "deleted"})
 		default:

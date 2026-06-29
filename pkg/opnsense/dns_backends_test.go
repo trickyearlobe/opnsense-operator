@@ -35,7 +35,7 @@ func TestDnsmasqUpsertHost_CreatesWhenAbsent(t *testing.T) {
 }
 
 func TestDnsmasqFindHost_MatchesHostDomain(t *testing.T) {
-	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"rows": []map[string]string{
 			{"uuid": "a", "host": "other", "domain": "trickyearlobe.com"},
 			{"uuid": "b", "host": "app", "domain": "trickyearlobe.com"},
@@ -100,7 +100,7 @@ func TestDynDNSEnsureHostname_NoopWhenPresent(t *testing.T) {
 }
 
 func TestDynDNSEnsureHostname_MissingAccountErrors(t *testing.T) {
-	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"rows": []map[string]string{
 			{"uuid": "acct1", "description": "SomethingElse", "hostnames": ""},
 		}})

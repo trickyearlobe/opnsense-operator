@@ -40,12 +40,12 @@ func TestACME_Disabled(t *testing.T) {
 func TestACME_IssuesWhenUnsigned(t *testing.T) {
 	var issued string
 	p := newACMEProvider(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/acmeclient/certificates/search":
+		switch r.URL.Path {
+		case "/api/acmeclient/certificates/search":
 			_ = json.NewEncoder(w).Encode(map[string]any{"rows": []map[string]string{
 				{"uuid": "zong", "name": "zong.trickyearlobe.com", "statusCode": ""},
 			}})
-		case r.URL.Path == "/api/acmeclient/certificates/issue/zong":
+		case "/api/acmeclient/certificates/issue/zong":
 			issued = r.URL.Path
 			_ = json.NewEncoder(w).Encode(map[string]string{"result": "ok"})
 		default:
@@ -108,7 +108,7 @@ func TestACME_FallsBackToHostname(t *testing.T) {
 
 // TestACME_MissingCertErrors: acme=true but no such cert on the box errors.
 func TestACME_MissingCertErrors(t *testing.T) {
-	p := newACMEProvider(t, func(w http.ResponseWriter, r *http.Request) {
+	p := newACMEProvider(t, func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"rows": []map[string]string{}})
 	})
 

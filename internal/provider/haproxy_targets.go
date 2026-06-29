@@ -65,9 +65,12 @@ func loadBalancerIP(svc *corev1.Service) string {
 // annotation override, else the Service's first port.
 func upstreamPort(svc *corev1.Service) (int32, error) {
 	if p := svc.Annotations[annotations.UpstreamPort]; p != "" {
-		n, err := strconv.Atoi(p)
+		n, err := strconv.ParseInt(p, 10, 32)
 		if err != nil {
 			return 0, fmt.Errorf("invalid %s: %w", annotations.UpstreamPort, err)
+		}
+		if n < 1 || n > 65535 {
+			return 0, fmt.Errorf("invalid %s: port %d out of range 1-65535", annotations.UpstreamPort, n)
 		}
 		return int32(n), nil
 	}

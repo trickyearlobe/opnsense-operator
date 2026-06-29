@@ -33,7 +33,7 @@ func TestAttachActionToFrontend(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/haproxy/settings/searchFrontends":
 			_ = json.NewEncoder(w).Encode(searchResponse{
-				Rows: []row{{UUID: "fe1", Name: "https-443"}}, Total: 1,
+				Rows: []Row{{UUID: "fe1", Name: "https-443"}}, Total: 1,
 			})
 		case "/api/haproxy/settings/getFrontend/fe1":
 			// Existing action "old" already selected.
@@ -63,7 +63,7 @@ func TestAttachActionToFrontend_AlreadyLinked(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/haproxy/settings/searchFrontends":
-			_ = json.NewEncoder(w).Encode(searchResponse{Rows: []row{{UUID: "fe1", Name: "f"}}})
+			_ = json.NewEncoder(w).Encode(searchResponse{Rows: []Row{{UUID: "fe1", Name: "f"}}})
 		case "/api/haproxy/settings/getFrontend/fe1":
 			_, _ = w.Write([]byte(`{"frontend":{"linkedActions":{"act":{"selected":1}}}}`))
 		default:

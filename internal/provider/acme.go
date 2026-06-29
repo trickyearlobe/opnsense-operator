@@ -74,4 +74,4 @@ func (p *ACME) Apply(ctx context.Context, svc *corev1.Service) error {
 
 // Cleanup is a no-op: certificates outlive the Service and are managed on the
 // firewall, so we never delete them here.
-func (p *ACME) Cleanup(ctx context.Context, svc *corev1.Service) error { return nil }
+func (p *ACME) Cleanup(_ context.Context, _ *corev1.Service) error { return nil }

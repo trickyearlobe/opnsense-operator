@@ -51,7 +51,7 @@ func (h *HAProxy) FindACL(ctx context.Context, name string) (string, error) {
 	return h.findByName(ctx, "/api/haproxy/settings/searchAcls", name)
 }
 
-func (h *HAProxy) ListManagedACLs(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedACLs(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchAcls")
 }
 
@@ -88,7 +88,7 @@ func (h *HAProxy) FindAction(ctx context.Context, name string) (string, error) {
 	return h.findByName(ctx, "/api/haproxy/settings/searchActions", name)
 }
 
-func (h *HAProxy) ListManagedActions(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedActions(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchActions")
 }
 

@@ -57,13 +57,13 @@ func TestFirewallUpsert_UpdatesWhenPresent(t *testing.T) {
 	const desc = ManagedMarker + " ns=aladdin svc=demo-wallet fw=wan-ingress"
 	var setPath string
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/firewall/filter/searchRule":
+		switch r.URL.Path {
+		case "/api/firewall/filter/searchRule":
 			_ = json.NewEncoder(w).Encode(searchResponse{
-				Rows:  []row{{UUID: "existing", Description: desc}},
+				Rows:  []Row{{UUID: "existing", Description: desc}},
 				Total: 1,
 			})
-		case r.URL.Path == "/api/firewall/filter/setRule/existing":
+		case "/api/firewall/filter/setRule/existing":
 			setPath = r.URL.Path
 			_ = json.NewEncoder(w).Encode(mutationResponse{Result: "saved", UUID: "existing"})
 		default:
@@ -113,8 +113,8 @@ func TestFirewallApply(t *testing.T) {
 
 // TestFirewallListManaged filters by the managed marker.
 func TestFirewallListManaged(t *testing.T) {
-	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(searchResponse{Rows: []row{
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(searchResponse{Rows: []Row{
 			{UUID: "1", Description: ManagedMarker + " ns=a svc=b fw=wan-ingress"},
 			{UUID: "2", Description: "hand-made WAN rule"},
 		}})

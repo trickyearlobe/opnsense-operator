@@ -51,6 +51,6 @@ func (h *HAProxy) DeleteFrontend(ctx context.Context, uuid string) error {
 }
 
 // ListManagedFrontends returns frontends this controller owns (by description marker).
-func (h *HAProxy) ListManagedFrontends(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedFrontends(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchFrontends")
 }

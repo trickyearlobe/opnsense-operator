@@ -39,7 +39,7 @@ type FirewallRules interface {
 	// exactly, or "" if none does.
 	FindByDescription(ctx context.Context, description string) (string, error)
 	// ListManaged returns every rule this controller owns (marker in description).
-	ListManaged(ctx context.Context) ([]row, error)
+	ListManaged(ctx context.Context) ([]Row, error)
 	// Upsert creates or updates the rule keyed by its Description; returns UUID.
 	Upsert(ctx context.Context, r FirewallRule) (string, error)
 	// Delete removes a rule by UUID.
@@ -111,7 +111,7 @@ func (a *automationFilter) wire(r FirewallRule) filterRuleWire {
 	}
 }
 
-func (a *automationFilter) search(ctx context.Context) ([]row, error) {
+func (a *automationFilter) search(ctx context.Context) ([]Row, error) {
 	var resp searchResponse
 	if err := a.c.post(ctx, "/api/firewall/filter/searchRule", map[string]any{"current": 1, "rowCount": -1}, &resp); err != nil {
 		return nil, err
@@ -132,12 +132,12 @@ func (a *automationFilter) FindByDescription(ctx context.Context, description st
 	return "", nil
 }
 
-func (a *automationFilter) ListManaged(ctx context.Context) ([]row, error) {
+func (a *automationFilter) ListManaged(ctx context.Context) ([]Row, error) {
 	rows, err := a.search(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]row, 0, len(rows))
+	out := make([]Row, 0, len(rows))
 	for _, r := range rows {
 		if strings.Contains(r.Description, ManagedMarker) {
 			out = append(out, r)
@@ -208,7 +208,7 @@ var errRulesNewUnimplemented = errors.New(
 func (r *rulesNew) FindByDescription(context.Context, string) (string, error) {
 	return "", errRulesNewUnimplemented
 }
-func (r *rulesNew) ListManaged(context.Context) ([]row, error) { return nil, errRulesNewUnimplemented }
+func (r *rulesNew) ListManaged(context.Context) ([]Row, error) { return nil, errRulesNewUnimplemented }
 func (r *rulesNew) Upsert(context.Context, FirewallRule) (string, error) {
 	return "", errRulesNewUnimplemented
 }
