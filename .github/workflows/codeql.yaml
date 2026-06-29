@@ -25,7 +25,7 @@ jobs:
         with:
           languages: go
           queries: security-and-quality
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - uses: github/codeql-action/autobuild@v3
