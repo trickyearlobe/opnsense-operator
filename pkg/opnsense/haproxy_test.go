@@ -52,13 +52,13 @@ func TestUpsertServer_CreatesWhenAbsent(t *testing.T) {
 func TestUpsertServer_UpdatesWhenPresent(t *testing.T) {
 	var setPath string
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/haproxy/settings/searchServers":
+		switch r.URL.Path {
+		case "/api/haproxy/settings/searchServers":
 			_ = json.NewEncoder(w).Encode(searchResponse{
-				Rows:  []row{{UUID: "existing", Name: "k8s_default_app_10-0-0-1_30080"}},
+				Rows:  []Row{{UUID: "existing", Name: "k8s_default_app_10-0-0-1_30080"}},
 				Total: 1,
 			})
-		case r.URL.Path == "/api/haproxy/settings/setServer/existing":
+		case "/api/haproxy/settings/setServer/existing":
 			setPath = r.URL.Path
 			_ = json.NewEncoder(w).Encode(mutationResponse{Result: "saved", UUID: "existing"})
 		default:
@@ -78,8 +78,8 @@ func TestUpsertServer_UpdatesWhenPresent(t *testing.T) {
 }
 
 func TestListManagedServers_FiltersByMarker(t *testing.T) {
-	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(searchResponse{Rows: []row{
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(searchResponse{Rows: []Row{
 			{UUID: "1", Name: "ours", Description: ManagedMarker + " ns=default svc=app"},
 			{UUID: "2", Name: "theirs", Description: "hand-made backend"},
 		}})

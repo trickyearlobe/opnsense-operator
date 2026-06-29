@@ -1,24 +1,32 @@
-run:
-  timeout: 5m
-
+version: "2"
 linters:
   enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - unused
-    - ineffassign
-    - misspell
-    - revive
-    - gosec
     - bodyclose
-    - unconvert
+    - gosec
+    - misspell
     - nilerr
-
-issues:
-  exclude-rules:
-    # Test files may skip some error checks for brevity.
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
+    - revive
+    - unconvert
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gosec
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

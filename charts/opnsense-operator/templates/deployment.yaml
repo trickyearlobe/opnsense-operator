@@ -52,6 +52,18 @@ spec:
                   key: api-secret
             - name: DNS_DOMAIN
               value: {{ .Values.config.dnsDomain | quote }}
+            - name: DNS_BACKEND
+              value: {{ .Values.config.dns.backend | quote }}
+            - name: DDCLIENT_ACCOUNT
+              value: {{ .Values.config.dns.ddclientAccount | quote }}
+            - name: FRONTEND_BIND_ADDRESS
+              value: {{ .Values.config.frontendBindAddress | quote }}
+            - name: FIREWALL_RULE_API
+              value: {{ .Values.config.firewall.ruleApi | quote }}
+            - name: WAN_INTERFACE
+              value: {{ .Values.config.firewall.wanInterface | quote }}
+            - name: WAN_ALLOWED_PORTS
+              value: {{ .Values.config.firewall.wanAllowedPorts | quote }}
             - name: RECONFIGURE_DEBOUNCE
               value: {{ .Values.config.reconfigureDebounce | quote }}
             - name: RESYNC_PERIOD

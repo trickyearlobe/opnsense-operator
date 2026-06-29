@@ -47,13 +47,46 @@ const (
 	// DNS, when "true", maintains an Unbound host override for Hostname.
 	DNS = Group + "/dns"
 
-	// ACME, when "true", triggers issuance/renewal of the certificate whose
-	// description matches Hostname.
+	// ACME, when "true", ensures the cert for Hostname exists and issues/renews
+	// it via os-acme-client.
 	ACME = Group + "/acme"
+
+	// FrontendMode selects how the public frontend is provided:
+	//   "dedicated" – operator creates a frontend on ListenPort with TLSCert
+	//   "shared"    – operator attaches a host ACL to the existing Frontend
+	FrontendMode = Group + "/frontend-mode"
+
+	// ListenPort is the bind port for a "dedicated" frontend.
+	ListenPort = Group + "/listen-port"
+
+	// TLSCert names the certificate to bind, by CN/description (e.g.
+	// "*.trickyearlobe.com"). Resolved to a refid internally.
+	TLSCert = Group + "/tls-cert"
+
+	// DNSBackend selects the DNS mechanism when DNS is enabled:
+	//   "ddclient" | "unbound" | "dnsmasq"
+	DNSBackend = Group + "/dns-backend"
+
+	// ExposeWAN, when "true", opens a WAN firewall rule for ListenPort (subject
+	// to the operator's allowed-port range).
+	ExposeWAN = Group + "/expose-wan"
 
 	// Finalizer guards a managed Service so firewall objects are cleaned up
 	// before it disappears.
 	Finalizer = Group + "/cleanup"
+)
+
+// Frontend modes.
+const (
+	FrontendDedicated = "dedicated"
+	FrontendShared    = "shared"
+)
+
+// DNS backends.
+const (
+	DNSBackendDDClient = "ddclient"
+	DNSBackendUnbound  = "unbound"
+	DNSBackendDnsmasq  = "dnsmasq"
 )
 
 // Strategy enumerates upstream derivation modes.

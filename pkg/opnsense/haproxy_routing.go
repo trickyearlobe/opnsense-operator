@@ -8,24 +8,29 @@ import (
 // L7 host routing: ACL + Action + attachment to a public frontend.
 //
 // To route an HTTP Host to a backend, os-haproxy needs three things:
-//   1. an ACL that matches the host (expression "host_matches")
+//   1. an ACL that matches the host (expression "hdr" — HTTP Host header matches)
 //   2. an action of type "use_backend" that fires when the ACL matches
 //   3. that action linked into a public frontend's `linkedActions`
 //
-// EXPERIMENTAL: the exact field names below (notably the ACL value field
-// "host_matches" and the action's "use_backend"/"testType"/"operator") track
-// the os-haproxy model and can vary between plugin versions. Validate against
-// your firewall; everything here is isolated so a field rename is a one-line
-// fix. Steps 1–2 are fully managed (create/update/delete, ownership-tagged);
-// step 3 mutates only the frontend's linkedActions list.
+// Field names below were validated live against the os-haproxy model (getAcl /
+// getAction / getFrontend templates): the host-match expression is "hdr" with
+// the value in a field of the same name (NOT "host_matches"); the action uses
+// type/testType/operator/use_backend; a frontend's linkedActions is a
+// uuid -> {value,selected} map. Everything is isolated here so a future plugin
+// rename is a one-line fix. Steps 1–2 are fully managed (create/update/delete,
+// ownership-tagged); step 3 mutates only the frontend's linkedActions list.
+
+// ACLExprHostMatch is the os-haproxy expression for an exact HTTP Host match.
+// The matched value is carried in the field of the same name (ACL.Hdr).
+const ACLExprHostMatch = "hdr"
 
 // ACL matches a request attribute (here, the HTTP Host header).
 type ACL struct {
 	UUID        string `json:"-"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Expression  string `json:"expression"`             // e.g. "host_matches"
-	HostMatches string `json:"host_matches,omitempty"` // value when Expression=="host_matches"
+	Expression  string `json:"expression"`    // e.g. ACLExprHostMatch ("hdr")
+	Hdr         string `json:"hdr,omitempty"` // host value when Expression=="hdr"
 }
 
 // Action ties an ACL to a backend (use_backend if <acl>).
@@ -46,7 +51,7 @@ func (h *HAProxy) FindACL(ctx context.Context, name string) (string, error) {
 	return h.findByName(ctx, "/api/haproxy/settings/searchAcls", name)
 }
 
-func (h *HAProxy) ListManagedACLs(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedACLs(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchAcls")
 }
 
@@ -83,7 +88,7 @@ func (h *HAProxy) FindAction(ctx context.Context, name string) (string, error) {
 	return h.findByName(ctx, "/api/haproxy/settings/searchActions", name)
 }
 
-func (h *HAProxy) ListManagedActions(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedActions(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchActions")
 }
 

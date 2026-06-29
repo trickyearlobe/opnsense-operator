@@ -129,12 +129,75 @@ func (p *HAProxy) Cleanup(ctx context.Context, svc *corev1.Service) error {
 
 // --- L7 routing ----------------------------------------------------------
 
+// applyRouting attaches the backend to a public frontend, dispatching on
+// frontend-mode:
+//   - "dedicated": the operator owns a frontend on listen-port (with optional
+//     TLS offload) whose default backend is this service.
+//   - "shared" (or a bare frontend annotation, for back-compat): attach a
+//     host-matching ACL + use_backend action to an existing frontend.
+//   - neither: backend-only — the operator binds the backend to a frontend by hand.
 func (p *HAProxy) applyRouting(ctx context.Context, svc *corev1.Service, backendUUID string) error {
+	switch annotations.Get(svc, annotations.FrontendMode, "") {
+	case annotations.FrontendDedicated:
+		return p.applyDedicatedFrontend(ctx, svc, backendUUID)
+	case annotations.FrontendShared:
+		return p.applySharedRouting(ctx, svc, backendUUID)
+	default:
+		// Back-compat: a frontend named without an explicit mode is shared.
+		if annotations.Get(svc, annotations.Frontend, "") != "" {
+			return p.applySharedRouting(ctx, svc, backendUUID)
+		}
+		return nil
+	}
+}
+
+// applyDedicatedFrontend creates/updates a frontend the operator fully owns,
+// bound to listen-port and (if tls-cert is set) offloading TLS for the named
+// certificate. Reproduces the manually-built :9001 frontend from annotations.
+func (p *HAProxy) applyDedicatedFrontend(ctx context.Context, svc *corev1.Service, backendUUID string) error {
+	port := annotations.Get(svc, annotations.ListenPort, "")
+	if port == "" {
+		return fmt.Errorf("frontend-mode=%s requires annotation %s", annotations.FrontendDedicated, annotations.ListenPort)
+	}
+	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+		return fmt.Errorf("invalid %s %q: must be 1-65535", annotations.ListenPort, port)
+	}
+
+	fe := opnsense.Frontend{
+		Enabled:        "1",
+		Name:           frontendName(svc),
+		Description:    managedDescription(svc),
+		Bind:           p.cfg.FrontendBindAddress + ":" + port,
+		Mode:           "http",
+		DefaultBackend: backendUUID,
+	}
+
+	// Optional TLS offload: resolve the cert name to a HAProxy refid.
+	if cert := annotations.Get(svc, annotations.TLSCert, ""); cert != "" {
+		refid, err := p.opn.Trust().FindCertRef(ctx, cert)
+		if err != nil {
+			return fmt.Errorf("resolve tls-cert %q: %w", cert, err)
+		}
+		if refid == "" {
+			return fmt.Errorf("tls-cert %q not found in certificate store", cert)
+		}
+		fe.SSLEnabled = "1"
+		fe.SSLCertificates = refid
+		fe.SSLDefaultCertificate = refid
+	}
+
+	if _, err := p.opn.HAProxy().UpsertFrontend(ctx, fe); err != nil {
+		return fmt.Errorf("upsert frontend %s: %w", fe.Name, err)
+	}
+	return nil
+}
+
+func (p *HAProxy) applySharedRouting(ctx context.Context, svc *corev1.Service, backendUUID string) error {
 	frontend := annotations.Get(svc, annotations.Frontend, "")
 	host := annotations.Get(svc, annotations.Hostname, "")
 	if frontend == "" || host == "" {
-		// Backend-only mode: operator binds the backend to a frontend by hand.
-		return nil
+		return fmt.Errorf("frontend-mode=%s requires annotations %s and %s",
+			annotations.FrontendShared, annotations.Frontend, annotations.Hostname)
 	}
 	hap := p.opn.HAProxy()
 	desc := managedDescription(svc)
@@ -142,8 +205,8 @@ func (p *HAProxy) applyRouting(ctx context.Context, svc *corev1.Service, backend
 	aclUUID, err := hap.UpsertACL(ctx, opnsense.ACL{
 		Name:        aclName(svc),
 		Description: desc,
-		Expression:  "host_matches",
-		HostMatches: host,
+		Expression:  opnsense.ACLExprHostMatch,
+		Hdr:         host,
 	})
 	if err != nil {
 		return fmt.Errorf("upsert acl: %w", err)
@@ -171,6 +234,17 @@ func (p *HAProxy) applyRouting(ctx context.Context, svc *corev1.Service, backend
 func (p *HAProxy) cleanupRouting(ctx context.Context, svc *corev1.Service) error {
 	hap := p.opn.HAProxy()
 	frontend := annotations.Get(svc, annotations.Frontend, "")
+
+	// Delete any dedicated frontend we own first — it references the backend as
+	// its default. Found by name (managed convention), so cleanup never depends
+	// on annotations still being present.
+	if feUUID, err := hap.FindFrontend(ctx, frontendName(svc)); err != nil {
+		return err
+	} else if feUUID != "" {
+		if err := hap.DeleteFrontend(ctx, feUUID); err != nil {
+			return err
+		}
+	}
 
 	actionUUID, err := hap.FindAction(ctx, actionName(svc))
 	if err != nil {

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -84,7 +85,7 @@ func TestUpstreamTargets_LoadBalancer(t *testing.T) {
 	s.Spec.Ports = []corev1.ServicePort{{Port: 8080}}
 	s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "192.0.2.45"}}
 
-	got, err := p.upstreamTargets(nil, s)
+	got, err := p.upstreamTargets(context.Background(), s)
 	if err != nil {
 		t.Fatalf("upstreamTargets: %v", err)
 	}
@@ -98,7 +99,7 @@ func TestUpstreamTargets_LoadBalancer_PendingVIP(t *testing.T) {
 	s := svc("default", "web")
 	s.Spec.Ports = []corev1.ServicePort{{Port: 8080}}
 	// No ingress IP yet → no targets, no error (controller requeues).
-	got, err := p.upstreamTargets(nil, s)
+	got, err := p.upstreamTargets(context.Background(), s)
 	if err != nil || got != nil {
 		t.Fatalf("expected (nil,nil) while VIP pending, got (%+v,%v)", got, err)
 	}

@@ -47,14 +47,14 @@ type Backend struct {
 
 // row is the shape of a single search result; OPNsense returns enough fields
 // for us to match by name and identify ownership by description.
-type row struct {
+type Row struct {
 	UUID        string `json:"uuid"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
 type searchResponse struct {
-	Rows  []row `json:"rows"`
+	Rows  []Row `json:"rows"`
 	Total int   `json:"total"`
 }
 
@@ -82,7 +82,7 @@ func (h *HAProxy) FindServer(ctx context.Context, name string) (string, error) {
 }
 
 // ListManagedServers returns every server this controller owns.
-func (h *HAProxy) ListManagedServers(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedServers(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchServers")
 }
 
@@ -124,7 +124,7 @@ func (h *HAProxy) FindBackend(ctx context.Context, name string) (string, error) 
 }
 
 // ListManagedBackends returns every backend this controller owns.
-func (h *HAProxy) ListManagedBackends(ctx context.Context) ([]row, error) {
+func (h *HAProxy) ListManagedBackends(ctx context.Context) ([]Row, error) {
 	return h.listManaged(ctx, "/api/haproxy/settings/searchBackends")
 }
 
@@ -177,7 +177,7 @@ func (h *HAProxy) Reconfigure(ctx context.Context) error {
 
 // --- shared search helpers ----------------------------------------------
 
-func (h *HAProxy) search(ctx context.Context, path string) ([]row, error) {
+func (h *HAProxy) search(ctx context.Context, path string) ([]Row, error) {
 	// searchPhrase is empty: we pull the full set and filter client-side. The
 	// object counts on a firewall are small, so this stays cheap and keeps the
 	// matching logic in one place.
@@ -201,12 +201,12 @@ func (h *HAProxy) findByName(ctx context.Context, path, name string) (string, er
 	return "", nil
 }
 
-func (h *HAProxy) listManaged(ctx context.Context, path string) ([]row, error) {
+func (h *HAProxy) listManaged(ctx context.Context, path string) ([]Row, error) {
 	rows, err := h.search(ctx, path)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]row, 0, len(rows))
+	out := make([]Row, 0, len(rows))
 	for _, r := range rows {
 		if strings.Contains(r.Description, ManagedMarker) {
 			out = append(out, r)
