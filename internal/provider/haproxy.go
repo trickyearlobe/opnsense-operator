@@ -228,6 +228,25 @@ func (p *HAProxy) applySharedRouting(ctx context.Context, svc *corev1.Service, b
 	if _, err := hap.AttachActionToFrontend(ctx, frontend, actionUUID); err != nil {
 		return fmt.Errorf("attach action to frontend %q: %w", frontend, err)
 	}
+
+	// Bind the SNI certificate to the shared frontend so it presents a valid
+	// cert for this host. Dedicated mode sets the cert when it creates its own
+	// frontend; shared mode attaches to a pre-existing frontend, so it must add
+	// the cert to that frontend's list (additive — other hosts' certs are kept,
+	// TLS picks per-SNI). Without this, a new host on a shared HTTPS frontend is
+	// served the frontend's default cert and fails verification.
+	if cert := annotations.Get(svc, annotations.TLSCert, ""); cert != "" {
+		refid, err := p.opn.Trust().FindCertRef(ctx, cert)
+		if err != nil {
+			return fmt.Errorf("resolve tls-cert %q: %w", cert, err)
+		}
+		if refid == "" {
+			return fmt.Errorf("tls-cert %q not found in certificate store", cert)
+		}
+		if _, err := hap.EnsureFrontendCertificate(ctx, frontend, refid); err != nil {
+			return fmt.Errorf("bind tls-cert to shared frontend %q: %w", frontend, err)
+		}
+	}
 	return nil
 }
 

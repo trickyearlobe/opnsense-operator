@@ -197,3 +197,58 @@ func (h *HAProxy) DetachActionFromFrontend(ctx context.Context, frontendName, ac
 	}
 	return true, resp.err("setFrontend")
 }
+
+// frontendCertificates reads the current comma-separated ssl_certificates
+// (selected cert refids) of a frontend.
+func (h *HAProxy) frontendCertificates(ctx context.Context, uuid string) (string, error) {
+	var resp struct {
+		Frontend struct {
+			SSLCertificates map[string]struct {
+				Selected int `json:"selected"`
+			} `json:"ssl_certificates"`
+		} `json:"frontend"`
+	}
+	if err := h.c.get(ctx, "/api/haproxy/settings/getFrontend/"+uuid, &resp); err != nil {
+		return "", err
+	}
+	var selected []string
+	for id, v := range resp.Frontend.SSLCertificates {
+		if v.Selected == 1 {
+			selected = append(selected, id)
+		}
+	}
+	return joinCSV(selected), nil
+}
+
+// EnsureFrontendCertificate ensures certRefID is present in the named frontend's
+// ssl_certificates list, so the frontend can present it for the matching SNI
+// host. Additive: existing certs (e.g. the frontend's own default) are preserved,
+// so one shared frontend serves many hosts, each with its own cert. No-op if the
+// cert is already bound. Returns true if it changed anything (caller reconfigures).
+//
+// This is the shared-frontend analogue of the TLS binding applyDedicatedFrontend
+// does when it creates a frontend: dedicated mode owns the frontend and sets its
+// cert; shared mode must add the cert to a pre-existing frontend.
+func (h *HAProxy) EnsureFrontendCertificate(ctx context.Context, frontendName, certRefID string) (bool, error) {
+	feUUID, err := h.FindFrontend(ctx, frontendName)
+	if err != nil {
+		return false, err
+	}
+	if feUUID == "" {
+		return false, fmt.Errorf("frontend %q not found", frontendName)
+	}
+	current, err := h.frontendCertificates(ctx, feUUID)
+	if err != nil {
+		return false, err
+	}
+	if csvContains(current, certRefID) {
+		return false, nil
+	}
+	updated := appendCSV(current, certRefID)
+	body := map[string]map[string]string{"frontend": {"ssl_certificates": updated}}
+	var resp mutationResponse
+	if err := h.c.post(ctx, "/api/haproxy/settings/setFrontend/"+feUUID, body, &resp); err != nil {
+		return false, err
+	}
+	return true, resp.err("setFrontend")
+}

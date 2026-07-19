@@ -53,7 +53,9 @@ const (
 
 	// FrontendMode selects how the public frontend is provided:
 	//   "dedicated" – operator creates a frontend on ListenPort with TLSCert
-	//   "shared"    – operator attaches a host ACL to the existing Frontend
+	//   "shared"    – operator attaches a host ACL to the existing Frontend, and
+	//                 (if TLSCert is set) additively binds that cert to it so the
+	//                 shared frontend presents a valid certificate for this SNI host
 	FrontendMode = Group + "/frontend-mode"
 
 	// ListenPort is the bind port for a "dedicated" frontend.
