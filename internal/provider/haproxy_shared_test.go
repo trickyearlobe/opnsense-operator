@@ -32,10 +32,11 @@ func sharedSvc() *corev1.Service {
 	return s
 }
 
-// TestApplySharedRouting_CreatesHostACL drives the corrected host-ACL path: the
-// ACL must use expression "hdr" with the host in the hdr field (NOT the old
-// host_matches), the action must use_backend the service's backend, and the
-// action must be linked into the named frontend.
+// TestApplySharedRouting_CreatesHostACL drives the host-ACL path: the ACL must
+// use expression "hdr_sub" (Host substring — what os-haproxy renders into a
+// working Host match; bare "hdr" is a named-header match that never matches a
+// host value) with the host in the hdr_sub field, the action must use_backend
+// the service's backend, and the action must be linked into the named frontend.
 func TestApplySharedRouting_CreatesHostACL(t *testing.T) {
 	var aclBody map[string]opnsense.ACL
 	var actionBody map[string]opnsense.Action
@@ -68,15 +69,15 @@ func TestApplySharedRouting_CreatesHostACL(t *testing.T) {
 		t.Fatalf("applyRouting: %v", err)
 	}
 
-	if opnsense.ACLExprHostMatch != "hdr" {
-		t.Fatalf("ACLExprHostMatch = %q, want hdr", opnsense.ACLExprHostMatch)
+	if opnsense.ACLExprHostMatch != "hdr_sub" {
+		t.Fatalf("ACLExprHostMatch = %q, want hdr_sub", opnsense.ACLExprHostMatch)
 	}
 	acl := aclBody["acl"]
-	if acl.Expression != "hdr" {
-		t.Errorf("acl expression = %q, want hdr", acl.Expression)
+	if acl.Expression != "hdr_sub" {
+		t.Errorf("acl expression = %q, want hdr_sub", acl.Expression)
 	}
-	if acl.Hdr != "wallet.trickyearlobe.com" {
-		t.Errorf("acl hdr = %q, want the hostname", acl.Hdr)
+	if acl.HdrSub != "wallet.trickyearlobe.com" {
+		t.Errorf("acl hdr_sub = %q, want the hostname", acl.HdrSub)
 	}
 	act := actionBody["action"]
 	if act.Type != "use_backend" || act.UseBackend != "backend-uuid" || act.LinkedAcls != "acl-uuid" {

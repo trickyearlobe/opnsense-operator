@@ -20,17 +20,21 @@ import (
 // rename is a one-line fix. Steps 1–2 are fully managed (create/update/delete,
 // ownership-tagged); step 3 mutates only the frontend's linkedActions list.
 
-// ACLExprHostMatch is the os-haproxy expression for an exact HTTP Host match.
-// The matched value is carried in the field of the same name (ACL.Hdr).
-const ACLExprHostMatch = "hdr"
+// ACLExprHostMatch is the os-haproxy expression for matching the HTTP Host
+// header, carried in the field of the same name (ACL.HdrSub). It is "hdr_sub"
+// (Host substring) — the expression os-haproxy actually renders into a working
+// Host ACL on the box. The bare "hdr" expression is a *named-header* match: it
+// treats its value as the header NAME (hdr(<value>)), so a host value there
+// matches nothing and the route silently falls through to the default backend.
+const ACLExprHostMatch = "hdr_sub"
 
 // ACL matches a request attribute (here, the HTTP Host header).
 type ACL struct {
 	UUID        string `json:"-"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Expression  string `json:"expression"`    // e.g. ACLExprHostMatch ("hdr")
-	Hdr         string `json:"hdr,omitempty"` // host value when Expression=="hdr"
+	Expression  string `json:"expression"`         // e.g. ACLExprHostMatch ("hdr_sub")
+	HdrSub      string `json:"hdr_sub,omitempty"` // host value when Expression=="hdr_sub"
 }
 
 // Action ties an ACL to a backend (use_backend if <acl>).
